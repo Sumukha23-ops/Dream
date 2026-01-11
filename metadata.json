@@ -1,0 +1,9 @@
+{
+  "name": "Dream Space AI",
+  "description": "Supreme Neural Reasoning Engine by Sumukha S. featuring Silicon Zenith RoboStudio and Elite Multi-Lattice Hub.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

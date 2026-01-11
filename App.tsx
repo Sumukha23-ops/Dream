@@ -31,7 +31,6 @@ import { FriendLattice } from './components/FriendLattice';
 import { AISMGenerator } from './components/AISMGenerator';
 import { LearningPath } from './components/LearningPath';
 
-// CRITICAL: Synchronized parity across all language lattices to prevent blank UI states.
 const LATTICE_LOCALIZATION: Record<Language, any> = {
   en: {
     appTitle: "DREAM SPACE AI", forgeTitle: "The Forge", labsBtn: "Forge", backBtn: "Back", terminateBtn: "TERMINATE", thinking: "Deep Reasoning...", talkToMe: "Talk to me...", creatorGreeting: "Jay Swaminarayan! 🙏 Architect Sumukha, core synchronized.", initialize: "Enter Neural Grid", identifyCreator: "Architect Login", selectLang: "Calibrate Language Lattice",
@@ -54,7 +53,7 @@ const LATTICE_LOCALIZATION: Record<Language, any> = {
   fr: {
     appTitle: "DREAM SPACE AI", forgeTitle: "La Forge", labsBtn: "Forge", backBtn: "Retour", terminateBtn: "FIN", thinking: "Réflexion...", talkToMe: "Parlez-moi...", creatorGreeting: "Jay Swaminarayan ! 🙏", initialize: "Entrer Grid", identifyCreator: "Architect Login", selectLang: "Langue",
     modules: {
-      circuit: { label: "IA Circuits", desc: "Code et 3D." }, live_call: { label: "Lien Neural", desc: "Interaction 3D." }, trading: { label: "Marché Quant", desc: "Synthèse." }, aism: { label: "Forge Sonique", desc: "Musique." }, image: { label: "Genèse", desc: "Photoréalisme." }, nano_edit: { label: "Alchimiste", desc: "Édition." }, game: { label: "Architecte", desc: "Jeux." }, arena: { label: "Arène", desc: "Personnes." }, security: { label: "Wraith", desc: "Sécurité." }, knowledge: { label: "Scholar", desc: "Quiz." }, piano: { label: "Maestro", desc: "Symphonie." }, scan: { label: "Sentinel", desc: "Optique." }, network: { label: "Grille", desc: "Registre." }, vault: { label: "Voûte", desc: "Répertoire." }, alchemy: { label: "Alchimie", desc: "Vocal." }, dance: { label: "Motion", desc: "Chorégraphie." }, vortex: { label: "Vortex", desc: "Physique." }, impact: { label: "Impact", desc: "Gravité." }, grapher: { label: "Nexus", desc: "Grapheur." }, void: { label: "Void", desc: "Logique." }, archivist: { label: "Archiviste", desc: "Histoire." }, friends: { label: "Cercle", desc: "Chat privé." }, academy_code: { label: "Académie Code", desc: "Programmation." }, academy_trade: { label: "Académie Trade", desc: "Finance." }
+      circuit: { label: "IA Circuits", desc: "Code et 3D." }, live_call: { label: "Lien Neural", desc: "Interaction 3D." }, trading: { label: "Marché Quant", desc: "Synthèse." }, aism: { label: "Forge Sonique", desc: "Música." }, image: { label: "Genèse", desc: "Photoréalisme." }, nano_edit: { label: "Alchimiste", desc: "Édition." }, game: { label: "Architecte", desc: "Jeux." }, arena: { label: "Arène", desc: "Personnes." }, security: { label: "Wraith", desc: "Sécurité." }, knowledge: { label: "Scholar", desc: "Quiz." }, piano: { label: "Maestro", desc: "Symphonie." }, scan: { label: "Sentinel", desc: "Optique." }, network: { label: "Grille", desc: "Registre." }, vault: { label: "Voûte", desc: "Répertoire." }, alchemy: { label: "Alchimie", desc: "Vocal." }, dance: { label: "Motion", desc: "Chorégraphie." }, vortex: { label: "Vortex", desc: "Physique." }, impact: { label: "Impact", desc: "Gravité." }, grapher: { label: "Nexus", desc: "Grapheur." }, void: { label: "Void", desc: "Logique." }, archivist: { label: "Archiviste", desc: "Histoire." }, friends: { label: "Cercle", desc: "Chat privé." }, academy_code: { label: "Académie Code", desc: "Programmation." }, academy_trade: { label: "Académie Trade", desc: "Finance." }
     }
   },
   de: {
@@ -155,7 +154,8 @@ const App: React.FC = () => {
   ], [loc]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    // FIX: Cast to File[] to ensure 'name' and 'type' exist on each file item.
+    const files = Array.from(e.target.files || []) as File[];
     if (stagedFiles.length + files.length > 30) {
       alert("Lattice overflow: Maximum 30 shards allowed.");
       return;
@@ -166,6 +166,7 @@ const App: React.FC = () => {
         const base64 = (event.target?.result as string).split(',')[1];
         setStagedFiles(prev => [...prev, { name: file.name, mimeType: file.type, data: base64 }]);
       };
+      // FIX: 'file' is now typed as File (which extends Blob), satisfying readAsDataURL.
       reader.readAsDataURL(file);
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -185,12 +186,34 @@ const App: React.FC = () => {
       const stream = sovereignAPI.generateChatStream(text, engine, personality, currentAttachments[0], undefined, language, isCreatorMode);
       const assistantId = (Date.now() + 1).toString();
       setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', timestamp: Date.now(), personality }]);
+      
       let fullText = '';
+      let emotionLocked = false;
+
       for await (const chunk of stream) {
         fullText += chunk.text;
-        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fullText.replace(/\[EMOTION:\s*\w+\]\s*/, '').trim(), sources: chunk.sources } : m));
+        
+        // Dynamic Emotion Extraction Protocol
+        if (!emotionLocked) {
+          const emotionMatch = fullText.match(/\[EMOTION:\s*(\w+)\]/);
+          if (emotionMatch) {
+            const detectedEmotion = emotionMatch[1].toUpperCase() as NeuralEmotion;
+            if (Object.values(NeuralEmotion).includes(detectedEmotion)) {
+              setEmotion(detectedEmotion);
+              emotionLocked = true;
+            }
+          }
+        }
+
+        const cleanDisplayContent = fullText.replace(/\[EMOTION:\s*\w+\]\s*/, '').trim();
+        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: cleanDisplayContent, sources: chunk.sources } : m));
       }
-    } catch (err) { setEmotion(NeuralEmotion.ERROR); } finally { setIsLoading(false); }
+    } catch (err) { 
+      setEmotion(NeuralEmotion.ERROR); 
+    } finally { 
+      setIsLoading(false); 
+      // Do not reset emotion to Neutral here to satisfy "Keep Continuous" requirement.
+    }
   };
 
   const handlePin = (id: string) => {
